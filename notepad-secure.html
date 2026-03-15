@@ -1963,11 +1963,7 @@ async function initApp() {
     mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
   }
 
-  let rawHash = location.hash;
-  console.log('Raw hash length:', rawHash.length, 'First 50:', rawHash.substring(0, 50));
-  let hash = rawHash.substring(1);
-  // Some browsers/servers percent-encode hash contents
-  try { hash = decodeURIComponent(hash); } catch(e) {}
+  let hash = location.hash.substring(1);
   let previewOnLoad = false;
   if (hash.startsWith('preview:')) {
     previewOnLoad = true;
