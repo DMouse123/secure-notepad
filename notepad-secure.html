@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secure Notepad</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@joplin/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+<link id="hljs-dark" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" disabled>
+<link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github.min.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        mono: ['"SF Mono"', '"Fira Code"', '"Cascadia Code"', 'monospace'],
+        sans: ['"Inter"', 'system-ui', 'sans-serif'],
+      },
+      animation: {
+        'shake': 'shake 0.4s ease-in-out',
+        'modal-in': 'modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      },
+      keyframes: {
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-6px)' },
+          '40%, 80%': { transform: 'translateX(6px)' },
+        },
+        'modal-in': {
+          from: { opacity: '0', transform: 'translateY(20px) scale(0.95)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+      },
+    },
+  },
+}
+</script>
+<style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+  .animate-shake { animation: shake 0.4s ease-in-out; }
+
+  /* Custom scrollbar — thin overlay style */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.15) transparent;
+  }
+  .dark * {
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+  html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+  /* Dark mode overrides for code/pre */
+  .dark #richEditor code, .dark #preview code, .dark #splitPreview code {
+    color: #e4e4e7;
+  }
+  .dark #richEditor pre, .dark #preview pre, .dark #splitPreview pre {
+    color: #e4e4e7;
+  }
+  .dark #richEditor, .dark #preview, .dark #splitPreview {
+    color: #e4e4e7;
+  }
+  .dark #richEditor th, .dark #preview th, .dark #splitPreview th {
+    color: #e4e4e7;
+  }
+  .dark #richEditor td, .dark #preview td, .dark #splitPreview td {
+    color: #e4e4e7;
+  }
+  .dark #richEditor a, .dark #preview a, .dark #splitPreview a {
+    color: #a78bfa;
+  }
+  .dark #richEditor blockquote, .dark #preview blockquote, .dark #splitPreview blockquote {
+    color: #d4d4d8;
+  }
+  .dark #richEditor h1, .dark #richEditor h2, .dark #richEditor h3,
+  .dark #preview h1, .dark #preview h2, .dark #preview h3,
+  .dark #splitPreview h1, .dark #splitPreview h2, .dark #splitPreview h3 {
+    color: #fafafa;
+  }
+
+  /* Rich editor styles */
+  #richEditor {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  #richEditor:empty::before {
+    content: 'Start typing your note...';
+    color: #a1a1aa;
+  }
+  .dark #richEditor:empty::before {
+    color: #52525b;
+  }
+  #richEditor h1 { font-size: 1.875rem; font-weight: 700; margin: 0.5em 0 0.25em; line-height: 1.3; }
+  #richEditor h2 { font-size: 1.5rem; font-weight: 600; margin: 0.5em 0 0.25em; line-height: 1.35; }
+  #richEditor h3 { font-size: 1.25rem; font-weight: 600; margin: 0.5em 0 0.25em; line-height: 1.4; }
+  #richEditor p { margin: 0.4em 0; }
+  #richEditor ul, #richEditor ol { padding-left: 1.5em; margin: 0.4em 0; }
+  #richEditor li { margin: 0.15em 0; }
+  #richEditor blockquote {
+    border-left: 3px solid #8b5cf6;
+    padding-left: 1em;
+    margin: 0.5em 0;
+    opacity: 0.85;
+  }
+  #richEditor code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.875em;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    background: #f4f4f5;
+  }
+  .dark #richEditor code {
+    background: #27272a;
+  }
+  #richEditor pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.875em;
+    padding: 1em;
+    border-radius: 8px;
+    margin: 0.5em 0;
+    overflow-x: auto;
+    background: #f4f4f5;
+  }
+  .dark #richEditor pre {
+    background: #18181b;
+  }
+  #richEditor pre code {
+    padding: 0;
+    background: none;
+  }
+  #richEditor a { color: #7c3aed; text-decoration: underline; }
+  .dark #richEditor a { color: #a78bfa; }
+  #richEditor hr { border: none; border-top: 1px solid #e4e4e7; margin: 1em 0; }
+  .dark #richEditor hr { border-color: #3f3f46; }
+  #richEditor img { max-width: 100%; border-radius: 8px; margin: 0.5em 0; }
+  #richEditor table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
+  #richEditor th, #richEditor td { border: 1px solid #e4e4e7; padding: 0.4em 0.75em; text-align: left; }
+  .dark #richEditor th, .dark #richEditor td { border-color: #3f3f46; }
+  #richEditor th { font-weight: 600; background: #f4f4f5; }
+  .dark #richEditor th { background: #27272a; }
+
+  /* Preview & split preview styles */
+  #preview, #splitPreview {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  #preview h1, #splitPreview h1 { font-size: 1.875rem; font-weight: 700; margin: 0.5em 0 0.25em; line-height: 1.3; }
+  #preview h2, #splitPreview h2 { font-size: 1.5rem; font-weight: 600; margin: 0.5em 0 0.25em; line-height: 1.35; }
+  #preview h3, #splitPreview h3 { font-size: 1.25rem; font-weight: 600; margin: 0.5em 0 0.25em; line-height: 1.4; }
+  #preview p, #splitPreview p { margin: 0.4em 0; }
+  #preview ul, #preview ol, #splitPreview ul, #splitPreview ol { padding-left: 1.5em; margin: 0.4em 0; }
+  #preview ul, #splitPreview ul { list-style: disc; }
+  #preview ol, #splitPreview ol { list-style: decimal; }
+  #preview li, #splitPreview li { margin: 0.15em 0; }
+  #preview blockquote, #splitPreview blockquote {
+    border-left: 3px solid #8b5cf6;
+    padding-left: 1em;
+    margin: 0.5em 0;
+    opacity: 0.85;
+  }
+  #preview code, #splitPreview code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.875em;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    background: #f4f4f5;
+  }
+  .dark #preview code, .dark #splitPreview code { background: #27272a; }
+  #preview pre, #splitPreview pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.875em;
+    padding: 1em;
+    border-radius: 8px;
+    margin: 0.5em 0;
+    overflow-x: auto;
+    background: #f4f4f5;
+  }
+  .dark #preview pre, .dark #splitPreview pre { background: #18181b; }
+  #preview pre code, #splitPreview pre code { padding: 0; background: none; }
+  #preview a, #splitPreview a { color: #7c3aed; text-decoration: underline; }
+  .dark #preview a, .dark #splitPreview a { color: #a78bfa; }
+  #preview hr, #splitPreview hr { border: none; border-top: 1px solid #e4e4e7; margin: 1em 0; }
+  .dark #preview hr, .dark #splitPreview hr { border-color: #3f3f46; }
+  #preview img, #splitPreview img { max-width: 100%; border-radius: 8px; margin: 0.5em 0; }
+  #preview table, #splitPreview table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
+  #preview th, #preview td, #splitPreview th, #splitPreview td { border: 1px solid #e4e4e7; padding: 0.4em 0.75em; text-align: left; }
+  .dark #preview th, .dark #preview td, .dark #splitPreview th, .dark #splitPreview td { border-color: #3f3f46; }
+  #preview th, #splitPreview th { font-weight: 600; background: #f4f4f5; }
+  .dark #preview th, .dark #splitPreview th { background: #27272a; }
+
+  /* Task lists */
+  #richEditor ul.contains-task-list,
+  #preview ul.contains-task-list,
+  #splitPreview ul.contains-task-list { list-style: none; padding-left: 0.5em; }
+  #richEditor .task-list-item,
+  #preview .task-list-item,
+  #splitPreview .task-list-item { display: flex; align-items: baseline; gap: 0.4em; }
+  #richEditor .task-list-item input,
+  #preview .task-list-item input,
+  #splitPreview .task-list-item input { margin: 0; accent-color: #8b5cf6; }
+
+  /* Highlight / mark */
+  #richEditor mark, #preview mark, #splitPreview mark {
+    background: #fde68a; color: #1c1917; padding: 0.1em 0.25em; border-radius: 3px;
+  }
+  .dark #richEditor mark, .dark #preview mark, .dark #splitPreview mark {
+    background: #854d0e; color: #fef3c7;
+  }
+
+  /* Fullscreen */
+  .fullscreen { position: fixed !important; inset: 0; z-index: 40; }
+  .fullscreen #richEditor,
+  .fullscreen #codeWrap { max-width: none; }
+  .fullscreen #preview { max-width: 48rem; margin: 0 auto; }
+
+  /* Collapsible sections */
+  #richEditor details, #preview details, #splitPreview details {
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+    padding: 0.5em 1em;
+    margin: 0.5em 0;
+  }
+  .dark #richEditor details, .dark #preview details, .dark #splitPreview details {
+    border-color: #3f3f46;
+  }
+  #richEditor summary, #preview summary, #splitPreview summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.25em 0;
+  }
+  #richEditor summary:hover, #preview summary:hover, #splitPreview summary:hover { opacity: 0.8; }
+
+  /* Print styles */
+  @media print {
+    header, footer, #formatBar, #toast, .modal-overlay, #readerControls,
+    #findBar, #tocPanel, #splitDivider, #splitPreview { display: none !important; }
+
+    *, *::before, *::after {
+      position: static !important;
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      flex: none !important;
+    }
+
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    #editorArea, #editorContainer {
+      display: block !important;
+      position: static !important;
+      inset: auto !important;
+      z-index: auto !important;
+      overflow: visible !important;
+      height: auto !important;
+      background: white !important;
+    }
+
+    #richEditor, #preview {
+      max-width: none !important;
+      width: 100% !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      height: auto !important;
+      background: white !important;
+      color: black !important;
+    }
+
+    #codeWrap { display: none !important; }
+    /* Only show the active view */
+    #richEditor.hidden, #preview.hidden { display: none !important; }
+    #richEditor:not(.hidden), #preview:not(.hidden) { display: block !important; }
+
+    /* Page break rules */
+    h1, h2, h3 { page-break-after: avoid; break-after: avoid; }
+    pre, blockquote, table, img, details { page-break-inside: avoid; break-inside: avoid; }
+    p { orphans: 3; widows: 3; }
+
+    /* Clean print colors */
+    a { color: #333 !important; text-decoration: underline !important; }
+    code { background: #f0f0f0 !important; color: #333 !important; }
+    pre { background: #f5f5f5 !important; border: 1px solid #ddd !important; color: #333 !important; }
+    th { background: #eee !important; }
+    mark { background: #fde68a !important; color: #000 !important; }
+  }
+
+  /* Syntax highlighting overrides */
+  #richEditor pre code.hljs, #preview pre code.hljs, #splitPreview pre code.hljs {
+    padding: 0;
+    background: transparent;
+  }
+
+  /* Mermaid */
+  .mermaid-container { margin: 0.5em 0; }
+  .mermaid-container svg { max-width: 100%; }
+
+  /* KaTeX */
+  .katex-display { margin: 0.5em 0; overflow-x: auto; }
+  .katex-inline { display: inline; }
+
+  /* Superscript / subscript */
+  #richEditor sup, #preview sup, #splitPreview sup { vertical-align: super; font-size: 0.75em; }
+  #richEditor sub, #preview sub, #splitPreview sub { vertical-align: sub; font-size: 0.75em; }
+
+  /* Split view */
+  .split-view { display: flex !important; }
+  .split-view > * { flex: 1; min-width: 0; }
+  .split-divider {
+    width: 1px;
+    background: #e4e4e7;
+    flex-shrink: 0;
+  }
+  .dark .split-divider { background: #3f3f46; }
+
+  /* Code editor line numbers */
+  .code-wrap { position: relative; display: flex; overflow: hidden; }
+  .line-numbers {
+    padding: 1.5rem 0.5rem 1.5rem 0.75rem;
+    text-align: right;
+    user-select: none;
+    font-size: 15px;
+    line-height: 1.75;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: #a1a1aa;
+    width: 3.5em;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: pre;
+  }
+  .dark .line-numbers { color: #52525b; }
+  .code-wrap textarea {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Find & replace bar */
+  .find-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-bottom: 1px solid #e4e4e7;
+    background: #fafafa;
+    font-size: 13px;
+  }
+  .dark .find-bar {
+    border-color: #3f3f46;
+    background: #18181b;
+  }
+  .find-bar input {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #d4d4d8;
+    background: #fff;
+    color: #18181b;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    width: 180px;
+  }
+  .dark .find-bar input {
+    border-color: #3f3f46;
+    background: #09090b;
+    color: #fafafa;
+  }
+  .find-bar input:focus { border-color: #8b5cf6; }
+  .find-bar button {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #d4d4d8;
+    background: #fff;
+    color: #3f3f46;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .dark .find-bar button {
+    border-color: #3f3f46;
+    background: #27272a;
+    color: #a1a1aa;
+  }
+  .find-bar button:hover { border-color: #8b5cf6; }
+  .find-bar .find-count { color: #a1a1aa; font-size: 11px; min-width: 60px; }
+
+  /* ToC sidebar */
+  .toc-panel {
+    width: 220px;
+    overflow-y: auto;
+    padding: 1rem;
+    border-right: 1px solid #e4e4e7;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .dark .toc-panel { border-color: #3f3f46; }
+  .toc-panel a {
+    display: block;
+    padding: 3px 0;
+    color: #71717a;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .toc-panel a:hover { color: #8b5cf6; }
+  .toc-panel a.toc-h1 { font-weight: 700; }
+  .toc-panel a.toc-h2 { padding-left: 0.75em; }
+  .toc-panel a.toc-h3 { padding-left: 1.5em; font-size: 12px; }
+  .toc-title { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa; margin-bottom: 0.5rem; }
+
+  /* Templates modal */
+  .template-card {
+    padding: 12px;
+    border: 1px solid #e4e4e7;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .template-card:hover { border-color: #8b5cf6; background: #f5f3ff; }
+  .dark .template-card { border-color: #3f3f46; }
+  .dark .template-card:hover { border-color: #8b5cf6; background: #1e1b4b; }
+
+  /* Toolbar button active state */
+  .tb-active {
+    background: #8b5cf6 !important;
+    color: #fff !important;
+    border-color: #8b5cf6 !important;
+  }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden
+  bg-white text-zinc-900
+  dark:bg-zinc-950 dark:text-zinc-100
+  transition-colors duration-200">
+
+<!-- Top Toolbar -->
+<header class="flex items-center justify-between px-4 py-2 shrink-0 border-b
+  bg-zinc-50 border-zinc-200
+  dark:bg-zinc-900 dark:border-zinc-800">
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 text-sm font-semibold tracking-wide font-mono
+      text-violet-600 dark:text-violet-400">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      SECURE NOTEPAD
+    </div>
+    <div class="flex items-center gap-1.5 text-xs font-mono text-zinc-400 dark:text-zinc-500">
+      <span id="statusDot" class="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 transition-colors"></span>
+      <span id="statusText">Ready</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <!-- Theme toggle -->
+    <button onclick="toggleTheme()" class="inline-flex items-center justify-center rounded-md h-8 w-8
+      border border-zinc-200 bg-white hover:bg-zinc-100
+      dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-600 dark:text-zinc-400
+      transition-colors cursor-pointer" title="Toggle theme">
+      <svg class="w-4 h-4 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <button onclick="copyPlainLink()" title="Copy link (unencrypted)" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+      Share
+    </button>
+    <button onclick="copyPreviewLink()" title="Copy read-only preview link" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+      Preview
+    </button>
+    <button onclick="showEncryptModal()" title="Ctrl+E" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Encrypt
+    </button>
+    <button onclick="downloadNote()" title="Ctrl+S" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Save
+    </button>
+    <button onclick="printNote()" title="Print" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+      </svg>
+      Print
+    </button>
+    <button onclick="newNote()" class="inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-xs font-medium font-mono
+      border border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700
+      text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      New
+    </button>
+  </div>
+</header>
+
+<!-- Formatting Toolbar -->
+<div id="formatBar" class="flex items-center gap-1 px-4 py-1.5 shrink-0 border-b overflow-x-auto
+  bg-zinc-50 border-zinc-200
+  dark:bg-zinc-900 dark:border-zinc-800">
+  <!-- Mode switcher -->
+  <div class="flex items-center rounded-md border border-zinc-200 dark:border-zinc-700 mr-3 shrink-0">
+    <button onclick="setMode('rich')" id="modeRich" class="px-2.5 py-1 text-[11px] font-medium font-mono rounded-l-md cursor-pointer transition-colors
+      bg-violet-600 text-white border-r border-zinc-200 dark:border-zinc-700">Rich</button>
+    <button onclick="setMode('code')" id="modeCode" class="px-2.5 py-1 text-[11px] font-medium font-mono cursor-pointer transition-colors
+      text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-700">Markdown</button>
+    <button onclick="setMode('preview')" id="modePreview" class="px-2.5 py-1 text-[11px] font-medium font-mono rounded-r-md cursor-pointer transition-colors
+      text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800">Preview</button>
+  </div>
+  <!-- Divider -->
+  <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-1 shrink-0"></div>
+  <!-- Format buttons (only shown in rich mode) -->
+  <div id="formatButtons" class="flex items-center gap-1">
+    <button onclick="fmt('bold')" title="Bold (Ctrl+B)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+      </svg>
+    </button>
+    <button onclick="fmt('italic')" title="Italic (Ctrl+I)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>
+      </svg>
+    </button>
+    <button onclick="fmt('strikeThrough')" title="Strikethrough" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4H9a3 3 0 0 0-3 3c0 1.4.6 2.5 1.8 3.2"/><line x1="4" y1="12" x2="20" y2="12"/><path d="M15 12c1.2.7 2 1.8 2 3a3 3 0 0 1-3 3H8"/>
+      </svg>
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('formatBlock','<h1>')" title="Heading 1" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-bold font-mono">
+      H1
+    </button>
+    <button onclick="fmt('formatBlock','<h2>')" title="Heading 2" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-bold font-mono">
+      H2
+    </button>
+    <button onclick="fmt('formatBlock','<h3>')" title="Heading 3" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-bold font-mono">
+      H3
+    </button>
+    <button onclick="fmt('formatBlock','<p>')" title="Paragraph" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-mono">
+      P
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('insertUnorderedList')" title="Bullet list" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+        <circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/>
+      </svg>
+    </button>
+    <button onclick="fmt('insertOrderedList')" title="Numbered list" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/>
+        <text x="2" y="8" font-size="7" fill="currentColor" stroke="none" font-family="monospace">1</text>
+        <text x="2" y="14" font-size="7" fill="currentColor" stroke="none" font-family="monospace">2</text>
+        <text x="2" y="20" font-size="7" fill="currentColor" stroke="none" font-family="monospace">3</text>
+      </svg>
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('formatBlock','<blockquote>')" title="Blockquote" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21c3-3 4-7 4-12H3"/><path d="M15 21c3-3 4-7 4-12h-4"/>
+      </svg>
+    </button>
+    <button onclick="insertCode()" title="Inline code" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      </svg>
+    </button>
+    <button onclick="insertLink()" title="Insert link" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    </button>
+    <button onclick="insertHR()" title="Horizontal rule" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="2" y1="12" x2="22" y2="12"/>
+      </svg>
+    </button>
+    <button onclick="insertHighlight()" title="Highlight" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('indent')" title="Indent" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 8 7 12 3 16"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="18" x2="11" y2="18"/>
+      </svg>
+    </button>
+    <button onclick="fmt('outdent')" title="Outdent" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="7 8 3 12 7 16"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="18" x2="11" y2="18"/>
+      </svg>
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('undo')" title="Undo (Ctrl+Z)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      </svg>
+    </button>
+    <button onclick="fmt('redo')" title="Redo (Ctrl+Shift+Z)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/>
+      </svg>
+    </button>
+    <div class="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5 shrink-0"></div>
+    <button onclick="fmt('superscript')" title="Superscript" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-mono">
+      X<sup class="text-[8px]">2</sup>
+    </button>
+    <button onclick="fmt('subscript')" title="Subscript" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 px-1.5
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer text-[11px] font-mono">
+      X<sub class="text-[8px]">2</sub>
+    </button>
+  </div>
+  <div class="ml-auto flex items-center gap-1">
+    <button onclick="toggleFind()" title="Find & Replace (Ctrl+F)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </button>
+    <button onclick="toggleToC()" title="Table of Contents" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+    </button>
+    <button onclick="toggleSplit()" title="Split View" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>
+      </svg>
+    </button>
+    <button onclick="showTemplates()" title="Templates" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+    </button>
+    <button onclick="toggleWideLayout()" title="Toggle wide layout" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg id="wideIcon" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/><line x1="3" y1="6" x2="3" y2="18"/>
+      </svg>
+    </button>
+    <button onclick="toggleFullscreen()" title="Fullscreen (F11)" class="fmt-btn inline-flex items-center justify-center rounded-md h-7 w-7
+      hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer">
+      <svg id="fullscreenIcon" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- Find & Replace Bar -->
+<div id="findBar" class="find-bar hidden shrink-0">
+  <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input type="text" id="findInput" placeholder="Find..." oninput="doFind()">
+  <input type="text" id="replaceInput" placeholder="Replace...">
+  <button onclick="doReplace()">Replace</button>
+  <button onclick="doReplaceAll()">All</button>
+  <span class="find-count" id="findCount"></span>
+  <button onclick="toggleFind()" style="margin-left:auto;border:none;background:none;font-size:16px;cursor:pointer;color:#a1a1aa;">&times;</button>
+</div>
+
+<!-- Editor Area -->
+<div id="editorArea" class="flex-1 flex overflow-hidden">
+  <!-- ToC Panel -->
+  <div id="tocPanel" class="toc-panel hidden
+    bg-zinc-50 dark:bg-zinc-900">
+    <div class="toc-title">Table of Contents</div>
+    <div id="tocList"></div>
+  </div>
+
+  <!-- Main editor container -->
+  <div id="editorContainer" class="flex-1 flex justify-center overflow-hidden">
+    <!-- Rich Editor (WYSIWYG) -->
+    <div id="richEditor" contenteditable="true"
+      class="w-full max-w-3xl h-full overflow-y-auto outline-none px-8 py-6 text-[15px] leading-relaxed
+        bg-white text-zinc-900
+        dark:bg-zinc-950 dark:text-zinc-100
+        transition-colors"></div>
+
+    <!-- Code Editor (raw markdown) with line numbers -->
+    <div id="codeWrap" class="code-wrap w-full max-w-3xl h-full hidden">
+      <div id="lineNumbers" class="line-numbers
+        bg-zinc-50 dark:bg-zinc-900 overflow-hidden">1</div>
+      <textarea id="codeEditor"
+        class="h-full resize-none outline-none pl-2 pr-4 py-6 font-mono
+          bg-white text-zinc-900 placeholder:text-zinc-400
+          dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600
+          transition-colors"
+        style="font-size:15px;line-height:1.75;"
+        placeholder="Write markdown here..."
+        spellcheck="false"></textarea>
+    </div>
+
+    <!-- Preview (read-only rendered markdown) -->
+    <div id="preview"
+      class="w-full max-w-3xl h-full overflow-y-auto px-8 py-6 text-[15px] leading-relaxed hidden
+        bg-white text-zinc-900
+        dark:bg-zinc-950 dark:text-zinc-100
+        transition-colors"></div>
+  </div>
+
+  <!-- Split view divider & preview -->
+  <div id="splitDivider" class="split-divider hidden"></div>
+  <div id="splitPreview"
+    class="overflow-y-auto px-8 py-6 text-[15px] leading-relaxed hidden
+      bg-white text-zinc-900
+      dark:bg-zinc-950 dark:text-zinc-100
+      transition-colors"
+    style="flex:1;min-width:0;"></div>
+</div>
+
+<!-- Templates Modal -->
+<div id="templateModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal('templateModal')"></div>
+  <div class="modal-panel relative z-10 w-[480px] max-w-[90vw] max-h-[80vh] overflow-y-auto rounded-xl p-8 border shadow-2xl
+    bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
+    <h2 class="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Templates</h2>
+    <div class="grid grid-cols-2 gap-3" id="templateGrid"></div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="flex items-center justify-between px-4 py-1.5 text-[11px] shrink-0 border-t font-mono
+  bg-zinc-50 border-zinc-200 text-zinc-400
+  dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-500">
+  <div class="flex items-center gap-3">
+    <span id="charCount">0 chars</span>
+    <span id="wordCount">0 words</span>
+    <span id="hashSize"></span>
+  </div>
+  <span>AES-256-GCM + PBKDF2</span>
+</footer>
+
+<!-- Encrypt Modal -->
+<div id="encryptModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal('encryptModal')"></div>
+  <div class="modal-panel relative z-10 w-[380px] max-w-[90vw] rounded-xl p-8 border shadow-2xl
+    bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
+    <div class="mx-auto mb-5 w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+      <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h2 class="text-center text-lg font-semibold mb-1 text-zinc-900 dark:text-zinc-100">Encrypt Note</h2>
+    <p class="text-center text-sm mb-6 text-zinc-500 dark:text-zinc-400">Set a password to encrypt. Share the link + password separately.</p>
+    <div class="relative mb-1">
+      <input type="password" id="encryptPin" autocomplete="off" placeholder="Enter password"
+        class="w-full rounded-lg px-4 py-3 pr-11 text-lg text-center tracking-widest font-mono outline-none border-2 transition-colors
+          bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20
+          dark:bg-zinc-950 dark:border-zinc-700 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-400/20">
+      <button onclick="toggleVis('encryptPin')" tabindex="-1"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="flex items-center gap-2 mt-2 mb-1">
+      <div class="flex-1 h-1 rounded bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+        <div id="strengthFill" class="h-full rounded transition-all duration-300" style="width:0%"></div>
+      </div>
+      <button onclick="generatePassword()" title="Generate strong password"
+        class="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium cursor-pointer transition-colors
+          border border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-300
+          dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-violet-950 dark:hover:text-violet-400 dark:hover:border-violet-700">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
+        Generate
+      </button>
+    </div>
+    <div id="strengthLabel" class="text-[10px] text-right min-h-[14px] mb-3"></div>
+    <div id="encryptError" class="text-center text-red-500 text-xs min-h-[16px] mb-4"></div>
+    <div class="flex gap-2">
+      <button onclick="closeModal('encryptModal')"
+        class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border cursor-pointer transition-colors
+          border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300">Cancel</button>
+      <button onclick="encryptNote()"
+        class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors
+          bg-violet-600 hover:bg-violet-700 text-white dark:bg-violet-500 dark:hover:bg-violet-600
+          flex items-center justify-center gap-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        Encrypt & Copy
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Decrypt Modal -->
+<div id="decryptModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <div class="modal-panel relative z-10 w-[380px] max-w-[90vw] rounded-xl p-8 border shadow-2xl
+    bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
+    <div class="mx-auto mb-5 w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+      <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+      </svg>
+    </div>
+    <h2 class="text-center text-lg font-semibold mb-1 text-zinc-900 dark:text-zinc-100">Unlock Note</h2>
+    <p class="text-center text-sm mb-6 text-zinc-500 dark:text-zinc-400">This note is encrypted. Enter the password to view it.</p>
+    <div class="relative mb-4">
+      <input type="password" id="decryptPin" autocomplete="off" placeholder="Enter password"
+        class="w-full rounded-lg px-4 py-3 pr-11 text-lg text-center tracking-widest font-mono outline-none border-2 transition-colors
+          bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20
+          dark:bg-zinc-950 dark:border-zinc-700 dark:text-zinc-100 dark:focus:border-violet-400 dark:focus:ring-violet-400/20">
+      <button onclick="toggleVis('decryptPin')" tabindex="-1"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+    <div id="decryptError" class="text-center text-red-500 text-xs min-h-[16px] mb-4"></div>
+    <button onclick="decryptNote()"
+      class="w-full rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors
+        bg-violet-600 hover:bg-violet-700 text-white dark:bg-violet-500 dark:hover:bg-violet-600
+        flex items-center justify-center gap-1.5">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+      </svg>
+      Unlock
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<!-- Reader mode floating controls -->
+<div id="readerControls" class="fixed top-4 right-4 z-50 hidden flex gap-2">
+  <button onclick="toggleReaderToC()" title="Table of Contents"
+    class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all
+      bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-200/50 dark:border-zinc-700/50
+      text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400
+      hover:border-violet-300 dark:hover:border-violet-700 shadow-lg">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+  </button>
+  <button onclick="toggleReaderTheme()" title="Toggle theme"
+    class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all
+      bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-200/50 dark:border-zinc-700/50
+      text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400
+      hover:border-violet-300 dark:hover:border-violet-700 shadow-lg">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+  <button onclick="window.print()" title="Print"
+    class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all
+      bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-200/50 dark:border-zinc-700/50
+      text-zinc-500 dark:text-zinc-400 hover:text-violet-600 dark:hover:text-violet-400
+      hover:border-violet-300 dark:hover:border-violet-700 shadow-lg">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+      <rect x="6" y="14" width="12" height="8"/>
+    </svg>
+  </button>
+  <button onclick="exitReaderMode()" title="Exit preview (Esc)"
+    class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all
+      bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-200/50 dark:border-zinc-700/50
+      text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400
+      hover:border-red-300 dark:hover:border-red-700 shadow-lg">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+</div>
+
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-5
+  bg-violet-600 dark:bg-violet-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium font-mono
+  shadow-lg shadow-violet-500/25 opacity-0 pointer-events-none transition-all duration-300">
+</div>
+
+<script>
+const richEditor = document.getElementById('richEditor');
+const codeEditor = document.getElementById('codeEditor');
+const previewEl = document.getElementById('preview');
+const charCount = document.getElementById('charCount');
+const ITERATIONS = 200000;
+
+let currentMode = 'rich'; // 'rich' | 'code' | 'preview'
+let markdown = ''; // source of truth
+
+// --- Turndown config ---
+const td = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  emDelimiter: '*',
+  bulletListMarker: '-',
+  strongDelimiter: '**',
+  hr: '---',
+});
+
+// GFM plugin (tables, strikethrough, task lists)
+if (typeof turndownPluginGfm !== 'undefined') {
+  td.use(turndownPluginGfm.gfm);
+}
+
+// Table support — convert HTML tables to markdown tables
+td.addRule('table', {
+  filter: 'table',
+  replacement: function(content, node) {
+    const rows = Array.from(node.querySelectorAll('tr'));
+    if (!rows.length) return content;
+    const result = [];
+    rows.forEach((row, i) => {
+      const cells = Array.from(row.querySelectorAll('th, td'));
+      const line = '| ' + cells.map(c => c.textContent.trim()).join(' | ') + ' |';
+      result.push(line);
+      if (i === 0) {
+        result.push('| ' + cells.map(() => '---').join(' | ') + ' |');
+      }
+    });
+    return '\n\n' + result.join('\n') + '\n\n';
+  }
+});
+
+// Remove default handling of table sub-elements so they don't interfere
+['thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].forEach(tag => {
+  td.addRule(tag, {
+    filter: tag,
+    replacement: function(content) { return content; }
+  });
+});
+
+// Preserve <details>/<summary> as HTML (markdown passes HTML through)
+td.addRule('details', {
+  filter: 'details',
+  replacement: function(content, node) {
+    const summary = node.querySelector('summary');
+    const summaryText = summary ? summary.textContent.trim() : 'Details';
+    const inner = content.replace(summaryText, '').trim();
+    return '\n\n<details>\n<summary>' + summaryText + '</summary>\n\n' + inner + '\n\n</details>\n\n';
+  }
+});
+td.addRule('summary', {
+  filter: 'summary',
+  replacement: (content) => content
+});
+
+// Preserve <mark> as ==text==
+td.addRule('highlight', {
+  filter: 'mark',
+  replacement: (content) => '==' + content + '=='
+});
+
+// Preserve superscript
+td.addRule('superscript', {
+  filter: 'sup',
+  replacement: (content) => '<sup>' + content + '</sup>'
+});
+
+// Preserve subscript
+td.addRule('subscript', {
+  filter: 'sub',
+  replacement: (content) => '<sub>' + content + '</sub>'
+});
+
+// Preserve task list checkboxes
+td.addRule('taskListItem', {
+  filter: (node) => {
+    return node.nodeName === 'LI' && node.querySelector('input[type="checkbox"]');
+  },
+  replacement: (content, node) => {
+    const checkbox = node.querySelector('input[type="checkbox"]');
+    const checked = checkbox && checkbox.checked;
+    const text = content.replace(/^\s*\[[ x]\]\s*/i, '').trim();
+    return (checked ? '- [x] ' : '- [ ] ') + text + '\n';
+  }
+});
+
+// --- Theme ---
+
+function updateHljsTheme() {
+  const isDark = document.documentElement.classList.contains('dark');
+  document.getElementById('hljs-dark').disabled = !isDark;
+  document.getElementById('hljs-light').disabled = isDark;
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark');
+  html.classList.toggle('dark', !isDark);
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  updateHljsTheme();
+}
+
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'light' || (!saved && !prefersDark)) {
+    document.documentElement.classList.remove('dark');
+  }
+  updateHljsTheme();
+})();
+
+// --- Mode switching ---
+
+function setMode(mode) {
+  // Save content from current mode before switching
+  syncFromCurrentMode();
+
+  currentMode = mode;
+
+  // Update mode button styles
+  ['modeRich', 'modeCode', 'modePreview'].forEach(id => {
+    const btn = document.getElementById(id);
+    btn.className = btn.className.replace(/bg-violet-600 text-white|text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/g, '');
+  });
+  const activeClass = 'bg-violet-600 text-white';
+  const inactiveClass = 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800';
+  document.getElementById('modeRich').classList.add(...(mode === 'rich' ? activeClass : inactiveClass).split(' '));
+  document.getElementById('modeCode').classList.add(...(mode === 'code' ? activeClass : inactiveClass).split(' '));
+  document.getElementById('modePreview').classList.add(...(mode === 'preview' ? activeClass : inactiveClass).split(' '));
+
+  // Show/hide panels
+  richEditor.classList.toggle('hidden', mode !== 'rich');
+  document.getElementById('codeWrap').classList.toggle('hidden', mode !== 'code');
+  previewEl.classList.toggle('hidden', mode !== 'preview');
+
+  // Show/hide format buttons
+  document.getElementById('formatButtons').classList.toggle('hidden', mode !== 'rich');
+
+  // Load content into target mode
+  if (mode === 'rich') {
+    richEditor.innerHTML = marked.parse(markdown);
+    highlightCode(richEditor);
+    renderMermaid(richEditor);
+    renderKaTeX(richEditor);
+    richEditor.focus();
+  } else if (mode === 'code') {
+    codeEditor.value = markdown;
+    updateLineNumbers();
+    codeEditor.focus();
+  } else {
+    previewEl.innerHTML = marked.parse(markdown);
+    highlightCode(previewEl);
+    renderMermaid(previewEl);
+    renderKaTeX(previewEl);
+  }
+
+  // Update split view if active
+  if (splitActive) updateSplitPreview();
+  updateToC();
+  updateCounts();
+}
+
+function syncFromCurrentMode() {
+  if (currentMode === 'rich') {
+    markdown = td.turndown(richEditor.innerHTML);
+  } else if (currentMode === 'code') {
+    markdown = codeEditor.value;
+  }
+}
+
+function getMarkdown() {
+  syncFromCurrentMode();
+  return markdown;
+}
+
+function highlightCode(container) {
+  if (typeof hljs !== 'undefined') {
+    container.querySelectorAll('pre code').forEach(block => {
+      hljs.highlightElement(block);
+    });
+  }
+}
+
+function setMarkdown(md) {
+  markdown = md;
+  if (currentMode === 'rich') {
+    richEditor.innerHTML = marked.parse(md);
+    highlightCode(richEditor);
+  } else if (currentMode === 'code') {
+    codeEditor.value = md;
+  } else {
+    previewEl.innerHTML = marked.parse(md);
+    highlightCode(previewEl);
+  }
+}
+
+// --- Formatting (execCommand for rich mode) ---
+
+function fmt(command, value) {
+  if (currentMode !== 'rich') return;
+  document.execCommand(command, false, value || null);
+  richEditor.focus();
+}
+
+function insertCode() {
+  if (currentMode !== 'rich') return;
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    const text = range.toString();
+    const code = document.createElement('code');
+    code.textContent = text || 'code';
+    range.deleteContents();
+    range.insertNode(code);
+    sel.collapseToEnd();
+  }
+  richEditor.focus();
+}
+
+function insertLink() {
+  if (currentMode !== 'rich') return;
+  const url = prompt('Enter URL:');
+  if (url) {
+    document.execCommand('createLink', false, url);
+  }
+  richEditor.focus();
+}
+
+function insertHR() {
+  if (currentMode !== 'rich') return;
+  document.execCommand('insertHorizontalRule');
+  richEditor.focus();
+}
+
+function insertHighlight() {
+  if (currentMode !== 'rich') return;
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    const text = range.toString();
+    if (text) {
+      const mark = document.createElement('mark');
+      range.surroundContents(mark);
+    }
+  }
+  richEditor.focus();
+}
+
+let isWide = localStorage.getItem('wideLayout') === 'true';
+function toggleWideLayout() {
+  isWide = !isWide;
+  localStorage.setItem('wideLayout', isWide);
+  applyWideLayout();
+}
+function applyWideLayout() {
+  const targets = document.querySelectorAll('#richEditor, #codeWrap, #preview');
+  const icon = document.getElementById('wideIcon');
+  targets.forEach(el => {
+    el.classList.toggle('max-w-3xl', !isWide);
+    el.classList.toggle('max-w-full', isWide);
+  });
+  if (isWide) {
+    icon.innerHTML = '<polyline points="15 6 9 12 15 18"/><polyline points="9 6 3 12 9 18"/><line x1="21" y1="6" x2="21" y2="18"/>';
+  } else {
+    icon.innerHTML = '<polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/><line x1="3" y1="6" x2="3" y2="18"/>';
+  }
+}
+applyWideLayout();
+
+let isFullscreen = false;
+function toggleFullscreen() {
+  isFullscreen = !isFullscreen;
+  const area = document.getElementById('editorArea');
+  const icon = document.getElementById('fullscreenIcon');
+  if (isFullscreen) {
+    area.classList.add('fullscreen');
+    area.style.background = getComputedStyle(document.body).backgroundColor;
+    icon.innerHTML = '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>';
+  } else {
+    area.classList.remove('fullscreen');
+    area.style.background = '';
+    icon.innerHTML = '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>';
+  }
+}
+
+// --- Mermaid ---
+
+let mermaidId = 0;
+async function renderMermaid(container) {
+  if (typeof mermaid === 'undefined') return;
+  const blocks = container.querySelectorAll('code.language-mermaid');
+  for (const block of blocks) {
+    const pre = block.parentElement;
+    const text = block.textContent.trim();
+    const id = 'mermaid-' + (mermaidId++);
+    const div = document.createElement('div');
+    div.className = 'mermaid-container';
+    try {
+      const { svg } = await mermaid.render(id, text);
+      div.innerHTML = svg;
+      pre.replaceWith(div);
+    } catch (e) {
+      console.warn('Mermaid error:', e);
+    }
+  }
+}
+
+// --- KaTeX ---
+
+function renderKaTeX(container) {
+  if (typeof katex === 'undefined') return;
+  // Block math: $$...$$
+  const html = container.innerHTML;
+  const blockReplaced = html.replace(/\$\$([^$]+)\$\$/g, (_, tex) => {
+    try {
+      return '<div class="katex-display">' + katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }) + '</div>';
+    } catch (e) { return _; }
+  });
+  // Inline math: $...$
+  const inlineReplaced = blockReplaced.replace(/\$([^$\n]+)\$/g, (_, tex) => {
+    try {
+      return '<span class="katex-inline">' + katex.renderToString(tex.trim(), { throwOnError: false }) + '</span>';
+    } catch (e) { return _; }
+  });
+  if (inlineReplaced !== html) container.innerHTML = inlineReplaced;
+}
+
+// --- Line numbers ---
+
+function updateLineNumbers() {
+  const lines = codeEditor.value.split('\n').length;
+  const el = document.getElementById('lineNumbers');
+  el.textContent = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+}
+
+// --- Split view ---
+
+let splitActive = false;
+function toggleSplit() {
+  splitActive = !splitActive;
+  const divider = document.getElementById('splitDivider');
+  const splitPrev = document.getElementById('splitPreview');
+  const container = document.getElementById('editorContainer');
+  divider.classList.toggle('hidden', !splitActive);
+  splitPrev.classList.toggle('hidden', !splitActive);
+  if (splitActive) {
+    container.style.flex = '1';
+    container.style.minWidth = '0';
+    updateSplitPreview();
+  }
+}
+
+function updateSplitPreview() {
+  const splitPrev = document.getElementById('splitPreview');
+  if (!splitActive) return;
+  const md = getMarkdown();
+  splitPrev.innerHTML = marked.parse(md);
+  highlightCode(splitPrev);
+  renderMermaid(splitPrev);
+  renderKaTeX(splitPrev);
+}
+
+// Scroll sync for split view
+function syncScroll(source) {
+  if (!splitActive) return;
+  const splitPrev = document.getElementById('splitPreview');
+  const ratio = source.scrollTop / (source.scrollHeight - source.clientHeight || 1);
+  splitPrev.scrollTop = ratio * (splitPrev.scrollHeight - splitPrev.clientHeight);
+}
+
+// --- Table of Contents ---
+
+let tocActive = false;
+function toggleToC() {
+  tocActive = !tocActive;
+  document.getElementById('tocPanel').classList.toggle('hidden', !tocActive);
+  if (tocActive) updateToC();
+}
+
+function updateToC() {
+  if (!tocActive) return;
+  const md = getMarkdown();
+  const headings = [];
+  md.split('\n').forEach(line => {
+    const m = line.match(/^(#{1,3})\s+(.+)/);
+    if (m) headings.push({ level: m[1].length, text: m[2].replace(/[*_`~=]/g, '') });
+  });
+  const list = document.getElementById('tocList');
+  list.innerHTML = headings.map(h =>
+    '<a class="toc-h' + h.level + '" onclick="scrollToHeading(\'' + h.text.replace(/'/g, "\\'") + '\')">' + h.text + '</a>'
+  ).join('');
+}
+
+function scrollToHeading(text) {
+  const container = currentMode === 'rich' ? richEditor : previewEl;
+  const headings = container.querySelectorAll('h1, h2, h3');
+  for (const h of headings) {
+    if (h.textContent.trim() === text) {
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      break;
+    }
+  }
+}
+
+// --- Find & Replace ---
+
+let findActive = false;
+function toggleFind() {
+  findActive = !findActive;
+  document.getElementById('findBar').classList.toggle('hidden', !findActive);
+  if (findActive) document.getElementById('findInput').focus();
+}
+
+function doFind() {
+  const query = document.getElementById('findInput').value;
+  const countEl = document.getElementById('findCount');
+  if (!query) { countEl.textContent = ''; clearHighlights(); return; }
+  const container = currentMode === 'rich' ? richEditor : (currentMode === 'preview' ? previewEl : null);
+  if (!container) {
+    // Code mode: count in textarea
+    const text = codeEditor.value;
+    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const matches = text.match(regex);
+    countEl.textContent = (matches ? matches.length : 0) + ' found';
+    return;
+  }
+  clearHighlights();
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let count = 0;
+  const ranges = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const text = node.textContent;
+    let idx = text.toLowerCase().indexOf(query.toLowerCase());
+    while (idx !== -1) {
+      const range = document.createRange();
+      range.setStart(node, idx);
+      range.setEnd(node, idx + query.length);
+      ranges.push(range);
+      count++;
+      idx = text.toLowerCase().indexOf(query.toLowerCase(), idx + 1);
+    }
+  }
+  ranges.forEach(r => {
+    const mark = document.createElement('span');
+    mark.className = 'find-highlight';
+    mark.style.cssText = 'background:#fbbf24;color:#000;border-radius:2px;';
+    r.surroundContents(mark);
+  });
+  countEl.textContent = count + ' found';
+}
+
+function clearHighlights() {
+  const container = currentMode === 'rich' ? richEditor : previewEl;
+  container.querySelectorAll('.find-highlight').forEach(el => {
+    el.replaceWith(...el.childNodes);
+  });
+}
+
+function doReplace() {
+  const query = document.getElementById('findInput').value;
+  const replacement = document.getElementById('replaceInput').value;
+  if (!query) return;
+  if (currentMode === 'code') {
+    const idx = codeEditor.value.toLowerCase().indexOf(query.toLowerCase());
+    if (idx !== -1) {
+      codeEditor.value = codeEditor.value.substring(0, idx) + replacement + codeEditor.value.substring(idx + query.length);
+      updateLineNumbers();
+      autoSave();
+    }
+  } else {
+    syncFromCurrentMode();
+    const idx = markdown.toLowerCase().indexOf(query.toLowerCase());
+    if (idx !== -1) {
+      markdown = markdown.substring(0, idx) + replacement + markdown.substring(idx + query.length);
+      setMarkdown(markdown);
+      autoSave();
+    }
+  }
+  doFind();
+}
+
+function doReplaceAll() {
+  const query = document.getElementById('findInput').value;
+  const replacement = document.getElementById('replaceInput').value;
+  if (!query) return;
+  syncFromCurrentMode();
+  const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  markdown = markdown.replace(regex, replacement);
+  setMarkdown(markdown);
+  if (currentMode === 'code') updateLineNumbers();
+  autoSave();
+  doFind();
+}
+
+// --- Templates ---
+
+const templates = {
+  'Meeting Notes': `# Meeting Notes\n\n**Date:** ${new Date().toISOString().slice(0,10)}\n**Attendees:**\n\n---\n\n## Agenda\n\n1. \n2. \n3. \n\n---\n\n## Discussion\n\n\n\n---\n\n## Action Items\n\n- [ ] \n- [ ] \n- [ ] \n\n---\n\n## Next Meeting\n\n`,
+  'Project Brief': '# Project Brief\n\n## Overview\n\n\n\n## Goals\n\n- \n- \n- \n\n## Timeline\n\n| Phase | Date | Status |\n|---|---|---|\n| Planning | | :clock: |\n| Development | | |\n| Testing | | |\n| Launch | | |\n\n## Team\n\n| Name | Role |\n|---|---|\n| | |\n\n## Risks\n\n1. \n2. \n\n## Success Metrics\n\n- \n- \n',
+  'Blog Post': '# Title\n\n*Published: ' + new Date().toISOString().slice(0,10) + '*\n\n---\n\n## Introduction\n\n\n\n## Main Point\n\n\n\n### Supporting Details\n\n\n\n## Conclusion\n\n\n\n---\n\n*Tags: #tag1 #tag2*\n',
+  'To-Do List': '# To-Do List :memo:\n\n## High Priority :fire:\n\n- [ ] \n- [ ] \n\n## Medium Priority :star:\n\n- [ ] \n- [ ] \n\n## Low Priority\n\n- [ ] \n- [ ] \n\n---\n\n## Done :check:\n\n- [x] \n',
+  'Code Docs': '# API Documentation\n\n## Overview\n\n\n\n## Installation\n\n```bash\nnpm install package-name\n```\n\n## Usage\n\n```javascript\nimport { method } from \'package-name\';\n\nconst result = method(options);\n```\n\n## API Reference\n\n### `method(options)`\n\n| Parameter | Type | Description |\n|---|---|---|\n| `option1` | `string` | |\n| `option2` | `number` | |\n\n**Returns:** `Promise<Result>`\n\n## Examples\n\n\n\n## License\n\nMIT\n',
+  'Comparison': '# Comparison: A vs B\n\n## Overview\n\n| Feature | Option A | Option B |\n|---|---|---|\n| Price | | |\n| Performance | | |\n| Ease of Use | | |\n| Support | | |\n\n## Pros & Cons\n\n### Option A\n\n**Pros:**\n- \n\n**Cons:**\n- \n\n### Option B\n\n**Pros:**\n- \n\n**Cons:**\n- \n\n## Recommendation\n\n\n',
+};
+
+function showTemplates() {
+  const grid = document.getElementById('templateGrid');
+  grid.innerHTML = Object.keys(templates).map(name =>
+    '<div class="template-card" onclick="loadTemplate(\'' + name + '\')">' +
+    '<div class="font-semibold text-sm text-zinc-900 dark:text-zinc-100">' + name + '</div>' +
+    '<div class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">' + templates[name].split('\n').slice(0, 2).join(' ').substring(0, 60) + '...</div>' +
+    '</div>'
+  ).join('');
+  showModal('templateModal');
+}
+
+function loadTemplate(name) {
+  setMarkdown(templates[name]);
+  closeModal('templateModal');
+  autoSave();
+  updateCounts();
+  showToast('Template loaded: ' + name);
+}
+
+// --- Compression ---
+
+async function compressText(text) {
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate'));
+  const buf = await new Response(stream).arrayBuffer();
+  return bufToBase64(buf);
+}
+
+async function decompressText(encoded) {
+  const buf = base64ToBuf(encoded);
+  const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return await new Response(stream).text();
+}
+
+// --- Auto-save ---
+
+let saveTimeout = null;
+
+function autoSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    const text = getMarkdown();
+    if (!text) {
+      history.replaceState(null, '', location.pathname);
+      setStatus('Ready', '');
+      return;
+    }
+    try {
+      const compressed = await compressText(text);
+      history.replaceState(null, '', '#' + compressed);
+      setStatus('Saved', 'saved');
+    } catch (e) {
+      setStatus('Save failed', '');
+    }
+    updateCounts();
+  }, 300);
+}
+
+function updateCounts() {
+  const text = getMarkdown();
+  charCount.textContent = text.length + ' chars';
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = words + ' words';
+  const hashLen = location.hash.length;
+  const sizeEl = document.getElementById('hashSize');
+  if (hashLen > 0) {
+    const kb = (hashLen / 1024).toFixed(1);
+    sizeEl.textContent = kb + ' KB URL';
+    sizeEl.className = hashLen > 1500000 ? 'text-red-500' : '';
+  } else {
+    sizeEl.textContent = '';
+  }
+}
+
+// Rich editor input
+richEditor.addEventListener('input', () => { autoSave(); if (splitActive) updateSplitPreview(); });
+richEditor.addEventListener('scroll', () => syncScroll(richEditor));
+
+// Image paste support
+richEditor.addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.createElement('img');
+        img.src = ev.target.result;
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '8px';
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(img);
+          sel.collapseToEnd();
+        }
+        autoSave();
+        showToast('Image pasted');
+      };
+      reader.readAsDataURL(file);
+      break;
+    }
+  }
+});
+
+// Code editor input
+codeEditor.addEventListener('input', () => { autoSave(); updateLineNumbers(); if (splitActive) updateSplitPreview(); });
+codeEditor.addEventListener('scroll', () => {
+  document.getElementById('lineNumbers').scrollTop = codeEditor.scrollTop;
+  syncScroll(codeEditor);
+});
+
+// Tab key in code editor
+codeEditor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = codeEditor.selectionStart;
+    const end = codeEditor.selectionEnd;
+    codeEditor.value = codeEditor.value.substring(0, start) + '\t' + codeEditor.value.substring(end);
+    codeEditor.selectionStart = codeEditor.selectionEnd = start + 1;
+  }
+});
+
+// --- Password strength ---
+
+document.getElementById('encryptPin').addEventListener('input', (e) => {
+  const pw = e.target.value;
+  const fill = document.getElementById('strengthFill');
+  const label = document.getElementById('strengthLabel');
+  if (!pw) { fill.style.width = '0%'; label.textContent = ''; return; }
+  let score = 0;
+  if (pw.length >= 4) score++;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+  const levels = [
+    { w: '15%', c: '#ef4444', t: 'Weak' },
+    { w: '30%', c: '#f97316', t: 'Fair' },
+    { w: '50%', c: '#eab308', t: 'Okay' },
+    { w: '70%', c: '#84cc16', t: 'Good' },
+    { w: '85%', c: '#22d3ee', t: 'Strong' },
+    { w: '100%', c: '#10b981', t: 'Very strong' },
+  ];
+  const lvl = levels[Math.min(score, levels.length - 1)];
+  fill.style.width = lvl.w;
+  fill.style.background = lvl.c;
+  label.textContent = lvl.t;
+  label.style.color = lvl.c;
+});
+
+// --- Modal helpers ---
+
+function toggleVis(id) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function showModal(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.classList.add('flex');
+  const panel = el.querySelector('.modal-panel');
+  panel.style.animation = 'none';
+  panel.offsetHeight;
+  panel.style.animation = '';
+  panel.classList.add('animate-modal-in');
+  setTimeout(() => {
+    const inp = document.getElementById(id === 'encryptModal' ? 'encryptPin' : 'decryptPin');
+    inp.value = '';
+    inp.classList.remove('animate-shake');
+    inp.focus();
+  }, 100);
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('hidden');
+  el.classList.remove('flex');
+}
+
+function showEncryptModal() {
+  if (!getMarkdown().trim()) return;
+  document.getElementById('encryptError').textContent = '';
+  document.getElementById('strengthFill').style.width = '0%';
+  document.getElementById('strengthLabel').textContent = '';
+  showModal('encryptModal');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2500);
+}
+
+function setStatus(text, type) {
+  document.getElementById('statusText').textContent = text;
+  const dot = document.getElementById('statusDot');
+  dot.className = 'w-1.5 h-1.5 rounded-full transition-colors';
+  const colors = {
+    saved: 'bg-violet-500 shadow-[0_0_6px] shadow-violet-500',
+    encrypted: 'bg-emerald-500 shadow-[0_0_6px] shadow-emerald-500',
+    '': 'bg-zinc-400 dark:bg-zinc-600',
+  };
+  dot.classList.add(...(colors[type] || colors['']).split(' '));
+}
+
+// --- Password generator ---
+
+function generatePassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%&*?+-=';
+  const all = upper + lower + digits + symbols;
+  const len = 16;
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  // Guarantee at least one of each type
+  let pw = [
+    upper[arr[0] % upper.length],
+    lower[arr[1] % lower.length],
+    digits[arr[2] % digits.length],
+    symbols[arr[3] % symbols.length],
+  ];
+  for (let i = 4; i < len; i++) pw.push(all[arr[i] % all.length]);
+  // Shuffle
+  for (let i = pw.length - 1; i > 0; i--) {
+    const j = arr[i] % (i + 1);
+    [pw[i], pw[j]] = [pw[j], pw[i]];
+  }
+  const password = pw.join('');
+  const inp = document.getElementById('encryptPin');
+  inp.value = password;
+  inp.type = 'text';
+  inp.dispatchEvent(new Event('input'));
+  navigator.clipboard.writeText(password).then(() => {
+    showToast('Password generated & copied');
+  });
+}
+
+// --- Crypto ---
+
+function strToBytes(s) { return new TextEncoder().encode(s); }
+function bytesToStr(b) { return new TextDecoder().decode(b); }
+
+function bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64ToBuf(b64) {
+  b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function deriveKey(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey('raw', strToBytes(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+async function encrypt(plaintext, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, strToBytes(plaintext));
+  const packed = new Uint8Array(salt.length + iv.length + new Uint8Array(ciphertext).length);
+  packed.set(salt, 0);
+  packed.set(iv, 16);
+  packed.set(new Uint8Array(ciphertext), 28);
+  return bufToBase64(packed.buffer);
+}
+
+async function decrypt(encoded, password) {
+  const packed = new Uint8Array(base64ToBuf(encoded));
+  const salt = packed.slice(0, 16);
+  const iv = packed.slice(16, 28);
+  const ciphertext = packed.slice(28);
+  const key = await deriveKey(password, salt);
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return bytesToStr(plaintext);
+}
+
+// --- Actions ---
+
+async function encryptNote() {
+  const pin = document.getElementById('encryptPin').value;
+  const errEl = document.getElementById('encryptError');
+  if (!pin) {
+    errEl.textContent = 'Please enter a password';
+    const inp = document.getElementById('encryptPin');
+    inp.classList.remove('animate-shake'); inp.offsetHeight; inp.classList.add('animate-shake');
+    return;
+  }
+  try {
+    const encoded = await encrypt(getMarkdown(), pin);
+    const url = location.origin + location.pathname + '#enc:' + encoded;
+    await navigator.clipboard.writeText(url);
+    closeModal('encryptModal');
+    setStatus('Encrypted & copied', 'encrypted');
+    showToast('Encrypted link copied to clipboard');
+  } catch (err) {
+    errEl.textContent = 'Encryption failed: ' + err.message;
+  }
+}
+
+async function decryptNote() {
+  const pin = document.getElementById('decryptPin').value;
+  const errEl = document.getElementById('decryptError');
+  if (!pin) {
+    errEl.textContent = 'Please enter the password';
+    const inp = document.getElementById('decryptPin');
+    inp.classList.remove('animate-shake'); inp.offsetHeight; inp.classList.add('animate-shake');
+    return;
+  }
+  try {
+    const hash = decodeURIComponent(location.hash.substring(1));
+    const encoded = hash.startsWith('enc:') ? hash.substring(4) : hash;
+    const text = await decrypt(encoded, pin);
+    setMarkdown(text);
+    closeModal('decryptModal');
+    setStatus('Decrypted', 'saved');
+    updateCounts();
+    history.replaceState(null, '', location.pathname);
+  } catch (err) {
+    errEl.textContent = 'Wrong password or corrupted data';
+    const inp = document.getElementById('decryptPin');
+    inp.classList.remove('animate-shake'); inp.offsetHeight; inp.classList.add('animate-shake');
+  }
+}
+
+function newNote() {
+  markdown = '';
+  richEditor.innerHTML = '';
+  codeEditor.value = '';
+  previewEl.innerHTML = '';
+  setStatus('Ready', '');
+  history.replaceState(null, '', location.pathname);
+  updateCounts();
+}
+
+function downloadNote() {
+  const md = getMarkdown();
+  if (!md.trim()) return;
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'note-' + new Date().toISOString().slice(0, 10) + '.md';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Note downloaded');
+}
+
+function printNote() {
+  // Switch to preview mode for clean print, then trigger print
+  const prevMode = currentMode;
+  if (currentMode !== 'preview') setMode('preview');
+  setTimeout(() => {
+    window.print();
+    if (prevMode !== 'preview') setMode(prevMode);
+  }, 100);
+}
+
+async function copyPlainLink() {
+  const md = getMarkdown();
+  if (!md.trim()) return;
+  try {
+    const compressed = await compressText(md);
+    const url = location.origin + location.pathname + '#' + compressed;
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied to clipboard');
+  } catch (e) {
+    showToast('Failed to copy link');
+  }
+}
+
+async function copyPreviewLink() {
+  const md = getMarkdown();
+  if (!md.trim()) return;
+  try {
+    const compressed = await compressText(md);
+    const url = location.origin + location.pathname + '#preview:' + compressed;
+    await navigator.clipboard.writeText(url);
+    showToast('Preview link copied');
+  } catch (e) {
+    showToast('Failed to copy link');
+  }
+}
+
+// --- Event listeners ---
+
+document.getElementById('encryptPin').addEventListener('keydown', (e) => { if (e.key === 'Enter') encryptNote(); });
+document.getElementById('decryptPin').addEventListener('keydown', (e) => { if (e.key === 'Enter') decryptNote(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (inReaderMode) { exitReaderMode(); return; }
+    if (isFullscreen) { toggleFullscreen(); return; }
+    if (findActive) { toggleFind(); return; }
+    ['encryptModal', 'decryptModal', 'templateModal'].forEach(id => closeModal(id));
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    e.preventDefault();
+    showEncryptModal();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    downloadNote();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    toggleFind();
+  }
+  if (e.key === 'F11') {
+    e.preventDefault();
+    toggleFullscreen();
+  }
+});
+
+// --- On load ---
+
+async function initApp() {
+  try {
+  // --- Marked extensions ---
+
+  // Highlight ==text==
+  const highlightExt = {
+    name: 'highlight',
+    level: 'inline',
+    start(src) { return src.indexOf('=='); },
+    tokenizer(src) {
+      const match = src.match(/^==([^=]+)==/);
+      if (match) return { type: 'highlight', raw: match[0], text: match[1] };
+    },
+    renderer(token) { return '<mark>' + token.text + '</mark>'; }
+  };
+
+  // Emoji :name:
+  const emojiMap = {
+    smile: '\u{1F604}', laugh: '\u{1F602}', wink: '\u{1F609}', heart: '\u{2764}\u{FE0F}',
+    thumbsup: '\u{1F44D}', thumbsdown: '\u{1F44E}', fire: '\u{1F525}', star: '\u{2B50}',
+    check: '\u{2705}', cross: '\u{274C}', warning: '\u{26A0}\u{FE0F}', info: '\u{2139}\u{FE0F}',
+    rocket: '\u{1F680}', lock: '\u{1F512}', unlock: '\u{1F513}', key: '\u{1F511}',
+    eyes: '\u{1F440}', bulb: '\u{1F4A1}', pin: '\u{1F4CC}', link: '\u{1F517}',
+    clock: '\u{1F552}', calendar: '\u{1F4C5}', folder: '\u{1F4C1}', file: '\u{1F4C4}',
+    pencil: '\u{270F}\u{FE0F}', trash: '\u{1F5D1}\u{FE0F}', gear: '\u{2699}\u{FE0F}',
+    party: '\u{1F389}', sparkles: '\u{2728}', boom: '\u{1F4A5}', wave: '\u{1F44B}',
+    clap: '\u{1F44F}', muscle: '\u{1F4AA}', brain: '\u{1F9E0}', coffee: '\u{2615}',
+    bug: '\u{1F41B}', tada: '\u{1F389}', memo: '\u{1F4DD}', shield: '\u{1F6E1}\u{FE0F}',
+  };
+  const emojiExt = {
+    name: 'emoji',
+    level: 'inline',
+    start(src) { return src.indexOf(':'); },
+    tokenizer(src) {
+      const match = src.match(/^:([a-z_]+):/);
+      if (match && emojiMap[match[1]]) return { type: 'emoji', raw: match[0], name: match[1] };
+    },
+    renderer(token) { return emojiMap[token.name] || token.raw; }
+  };
+
+  marked.use({ extensions: [highlightExt, emojiExt] });
+  marked.setOptions({ breaks: true, gfm: true });
+
+  // Initialize mermaid
+  if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({ startOnLoad: false, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' });
+  }
+
+  let rawHash = location.hash;
+  console.log('Raw hash length:', rawHash.length, 'First 50:', rawHash.substring(0, 50));
+  let hash = rawHash.substring(1);
+  // Some browsers/servers percent-encode hash contents
+  try { hash = decodeURIComponent(hash); } catch(e) {}
+  let previewOnLoad = false;
+  if (hash.startsWith('preview:')) {
+    previewOnLoad = true;
+    hash = hash.substring(8);
+  }
+
+  if (!hash) {
+    // Load welcome note on first visit
+    const welcome = `# Welcome to Secure Notepad :lock:
+
+A **private**, **encrypted** notepad that lives entirely in your browser. No servers. No accounts. No tracking. :shield:
+
+---
+
+## How It Works :bulb:
+
+Your notes are saved directly into the **URL hash** as you type. That means:
+
+- :pin: Bookmark the URL to save your note
+- :link: Share the URL to share your note
+- :clock: Close the tab and reopen the URL — it's still there
+
+> :info: Everything stays in the browser. Nothing is ever sent to a server.
+
+---
+
+## Editor Modes
+
+Switch between three modes using the toggle in the toolbar:
+
+1. **Rich** — WYSIWYG editing, like Word or Google Docs
+2. **Markdown** — raw markdown source for power users
+3. **Preview** — clean, read-only rendered view
+
+---
+
+## Formatting :pencil:
+
+You can format text using the toolbar buttons or keyboard shortcuts:
+
+- **Bold text** — \`Ctrl+B\`
+- *Italic text* — \`Ctrl+I\`
+- ~~Strikethrough text~~ — toolbar button
+- ==Highlighted text== — toolbar highlight button
+- X<sup>2</sup> — Superscript (toolbar button)
+- H<sub>2</sub>O — Subscript (toolbar button)
+
+### Task Lists
+
+- [x] Create secure notepad :check:
+- [x] Add encryption :check:
+- [x] Add WYSIWYG editor :check:
+- [x] Add task lists :check:
+- [x] Add syntax highlighting :check:
+- [x] Add collapsible sections :check:
+- [x] Add image paste support :check:
+- [x] Add Mermaid diagrams :check:
+- [x] Add KaTeX math :check:
+- [x] Add split view :check:
+- [x] Add find & replace :check:
+- [x] Add table of contents :check:
+- [x] Add templates :check:
+- [x] Add superscript/subscript :check:
+- [x] Add line numbers :check:
+
+### Syntax Highlighted Code :sparkles:
+
+Inline \`code\` looks like this, and code blocks get **automatic syntax highlighting**:
+
+\`\`\`javascript
+// Encrypt a note with AES-256-GCM
+async function encryptAndShare(note, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, new TextEncoder().encode(note)
+  );
+  return bufToBase64(ciphertext);
+}
+\`\`\`
+
+\`\`\`python
+# Python example
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+print(list(fibonacci(10)))
+\`\`\`
+
+### Lists
+
+- Bullet lists for unordered items
+- Nested ideas and thoughts
+- Quick notes and reminders
+
+1. Numbered lists for sequential steps
+2. Tutorials and guides
+3. Ordered instructions
+
+### Blockquotes
+
+> "The only truly secure system is one that is powered off, cast in a block of concrete and sealed in a lead-lined room with armed guards." :lock:
+> — Gene Spafford
+
+---
+
+## Mermaid Diagrams :rocket:
+
+Create diagrams using [Mermaid](https://mermaid.js.org/) syntax in code blocks:
+
+\`\`\`mermaid
+graph LR
+    A[Write Note] --> B{Encrypt?}
+    B -->|Yes| C[Set Password]
+    C --> D[Share Link]
+    B -->|No| E[Share Plain Link]
+    D --> F[Recipient Decrypts]
+    E --> F
+\`\`\`
+
+\`\`\`mermaid
+sequenceDiagram
+    participant User
+    participant Browser
+    participant URL
+    User->>Browser: Type note
+    Browser->>Browser: Compress text
+    Browser->>URL: Save to hash
+    URL->>Browser: Load on visit
+    Browser->>User: Display note
+\`\`\`
+
+---
+
+## KaTeX Math :brain:
+
+Write LaTeX math equations inline or as blocks:
+
+**Inline math:** The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+**Block math:**
+
+$$E = mc^2$$
+
+$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$
+
+$$\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$
+
+---
+
+## Collapsible Sections :folder:
+
+Click to expand these sections:
+
+<details>
+<summary>How does the encryption work?</summary>
+
+The app uses the **Web Crypto API** built into your browser:
+
+1. Your password is fed through **PBKDF2** with 200,000 iterations and a random salt
+2. This derives a **256-bit AES-GCM key**
+3. Your note is encrypted with a random **IV** (initialization vector)
+4. The salt + IV + ciphertext are packed and base64-encoded into the URL
+
+No one can decrypt without your password — not even someone with the source code.
+
+</details>
+
+<details>
+<summary>What are the URL size limits?</summary>
+
+Most browsers support URLs up to **~2MB**. The footer shows the current URL size. For very large notes, consider downloading as a .md file instead of sharing via URL.
+
+</details>
+
+<details>
+<summary>Can I paste images?</summary>
+
+Yes! In **Rich mode**, just paste an image from your clipboard (\`Ctrl+V\`). The image is embedded as base64 data directly in the note. Note that images will significantly increase the URL size.
+
+</details>
+
+---
+
+## Split View :eyes:
+
+Click the **Split** button in the toolbar to enable side-by-side editing:
+
+- Left side: your editor (Rich or Markdown)
+- Right side: live rendered preview
+- Great for checking how your markdown looks in real-time
+
+---
+
+## Find & Replace :bulb:
+
+Press \`Ctrl+F\` or click the **Find** button to open Find & Replace:
+
+- Search across your note content
+- Replace one match or all matches at once
+- Works in all three editor modes
+
+---
+
+## Table of Contents :pin:
+
+Click the **ToC** button to open a sidebar showing all headings in your document. Click any heading to jump straight to it.
+
+---
+
+## Templates :memo:
+
+Click the **Templates** button to load a pre-built template:
+
+- **Meeting Notes** — agenda, discussion, action items
+- **Project Brief** — overview, goals, timeline, team
+- **Blog Post** — structured article template
+- **To-Do List** — prioritized task lists
+- **Code Docs** — API documentation template
+- **Comparison** — side-by-side feature comparison
+
+---
+
+## Emojis :sparkles:
+
+Type emoji shortcodes in markdown mode and they'll render automatically:
+
+| Shortcode | Emoji | Shortcode | Emoji |
+|---|---|---|---|
+| \`:smile:\` | :smile: | \`:fire:\` | :fire: |
+| \`:rocket:\` | :rocket: | \`:star:\` | :star: |
+| \`:heart:\` | :heart: | \`:tada:\` | :tada: |
+| \`:check:\` | :check: | \`:warning:\` | :warning: |
+| \`:lock:\` | :lock: | \`:key:\` | :key: |
+| \`:bulb:\` | :bulb: | \`:coffee:\` | :coffee: |
+
+---
+
+## Security Features :shield:
+
+| Feature | Details |
+|---|---|
+| Encryption | AES-256-GCM |
+| Key Derivation | PBKDF2 with 200,000 iterations |
+| Password Strength | Real-time strength meter |
+| Storage | URL hash only — never sent to a server |
+| Source Code | Fully visible — security through crypto, not obscurity |
+
+### How to encrypt & share:
+
+1. Write your note :memo:
+2. Click **Encrypt** (or press \`Ctrl+E\`) :lock:
+3. Set a strong password :key:
+4. The encrypted link is copied to your clipboard :check:
+5. Send the link one way, the password another way :shield:
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| \`Ctrl+E\` | Encrypt & share |
+| \`Ctrl+S\` | Download as .md file |
+| \`Ctrl+F\` | Find & replace |
+| \`Ctrl+B\` | Bold |
+| \`Ctrl+I\` | Italic |
+| \`Ctrl+Z\` | Undo |
+| \`Ctrl+Shift+Z\` | Redo |
+| \`F11\` | Fullscreen / zen mode |
+
+---
+
+:wave: *Click **New** in the toolbar to start a fresh note. Happy writing!* :sparkles:`;
+
+    setMarkdown(welcome);
+    updateCounts();
+    return;
+  }
+
+  if (hash.startsWith('enc:')) {
+    document.getElementById('decryptError').textContent = '';
+    showModal('decryptModal');
+  } else {
+    try {
+      const text = await decompressText(hash);
+      setMarkdown(text);
+      updateCounts();
+      setStatus('Loaded', 'saved');
+    } catch (e) {
+      console.error('Failed to load hash data:', e, 'Hash length:', hash.length, 'First 30:', hash.substring(0, 30));
+      showToast('Load failed: ' + e.message);
+      setStatus('Load failed', '');
+    }
+  }
+  if (previewOnLoad) enterReaderMode();
+
+  } catch (err) {
+    console.error('Init error:', err);
+    richEditor.textContent = 'Error loading app. Check the browser console (F12) for details.';
+  }
+}
+
+let inReaderMode = false;
+function enterReaderMode() {
+  inReaderMode = true;
+  setMode('preview');
+  document.querySelector('header').classList.add('hidden');
+  document.getElementById('formatBar').classList.add('hidden');
+  document.querySelector('footer').classList.add('hidden');
+  document.getElementById('findBar').classList.add('hidden');
+  document.getElementById('readerControls').classList.remove('hidden');
+  const area = document.getElementById('editorArea');
+  area.style.position = 'fixed';
+  area.style.inset = '0';
+  area.style.zIndex = '40';
+  area.style.background = getComputedStyle(document.body).backgroundColor;
+  const prev = document.getElementById('preview');
+  prev.style.maxWidth = '48rem';
+  prev.style.margin = '0 auto';
+  prev.style.paddingTop = '3rem';
+  prev.style.paddingBottom = '3rem';
+  updateToC();
+}
+
+function exitReaderMode() {
+  inReaderMode = false;
+  document.querySelector('header').classList.remove('hidden');
+  document.getElementById('formatBar').classList.remove('hidden');
+  document.querySelector('footer').classList.remove('hidden');
+  document.getElementById('readerControls').classList.add('hidden');
+  // Close reader ToC if open
+  if (tocActive) toggleToC();
+  const area = document.getElementById('editorArea');
+  area.style.position = '';
+  area.style.inset = '';
+  area.style.zIndex = '';
+  area.style.background = '';
+  const prev = document.getElementById('preview');
+  prev.style.maxWidth = '';
+  prev.style.margin = '';
+  prev.style.paddingTop = '';
+  prev.style.paddingBottom = '';
+  setMode('rich');
+  // Remove preview: prefix from hash
+  const h = location.hash.substring(1);
+  if (h.startsWith('preview:')) {
+    history.replaceState(null, '', '#' + h.substring(8));
+  }
+}
+
+function toggleReaderToC() {
+  toggleToC();
+  // Adjust preview centering when ToC is open
+  const prev = document.getElementById('preview');
+  if (tocActive) {
+    prev.style.margin = '0';
+  } else {
+    prev.style.margin = '0 auto';
+  }
+}
+
+function toggleReaderTheme() {
+  toggleTheme();
+  // Update reader background
+  const area = document.getElementById('editorArea');
+  area.style.background = getComputedStyle(document.body).backgroundColor;
+}
+
+// Try both events to ensure it fires
+if (document.readyState === 'complete') {
+  initApp();
+} else {
+  window.addEventListener('load', initApp);
+}
+</script>
+</body>
+</html>
