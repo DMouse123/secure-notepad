@@ -1477,21 +1477,37 @@ function loadTemplate(name) {
 // --- Compression ---
 
 async function compressText(text) {
-  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate'));
   const buf = await new Response(stream).arrayBuffer();
   return bufToBase64(buf);
 }
 
+async function tryDecompress(buf, format) {
+  const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream(format));
+  const reader = stream.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const combined = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.length; }
+  return new TextDecoder().decode(combined);
+}
+
 async function decompressText(encoded) {
   const buf = base64ToBuf(encoded);
-  // Try gzip first (new format), then deflate (legacy), then raw deflate
-  for (const fmt of ['gzip', 'deflate', 'raw']) {
-    try {
-      const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream(fmt === 'raw' ? 'deflate-raw' : fmt));
-      return await new Response(stream).text();
-    } catch (e) { continue; }
+  // Detect format from header bytes
+  const bytes = new Uint8Array(buf);
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    return tryDecompress(buf, 'gzip');
   }
-  throw new Error('Failed to decompress data');
+  if (bytes[0] === 0x78) {
+    return tryDecompress(buf, 'deflate');
+  }
+  return tryDecompress(buf, 'deflate-raw');
 }
 
 // --- Auto-save ---
