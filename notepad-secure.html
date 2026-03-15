@@ -1477,15 +1477,21 @@ function loadTemplate(name) {
 // --- Compression ---
 
 async function compressText(text) {
-  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate'));
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
   const buf = await new Response(stream).arrayBuffer();
   return bufToBase64(buf);
 }
 
 async function decompressText(encoded) {
   const buf = base64ToBuf(encoded);
-  const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate'));
-  return await new Response(stream).text();
+  // Try gzip first (new format), then deflate (legacy), then raw deflate
+  for (const fmt of ['gzip', 'deflate', 'raw']) {
+    try {
+      const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream(fmt === 'raw' ? 'deflate-raw' : fmt));
+      return await new Response(stream).text();
+    } catch (e) { continue; }
+  }
+  throw new Error('Failed to decompress data');
 }
 
 // --- Auto-save ---
